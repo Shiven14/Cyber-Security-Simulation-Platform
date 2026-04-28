@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}SQL Injection{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2><span class="tag-red">[SQLi]</span> SQL Injection Challenge</h2>
+  <p class="page-subtitle">The login form below builds its query with string formatting. Exploit it — then learn the fix.</p>
+</div>
+
+<div class="challenge-layout">
+
+  <!-- ── Attack panel ────────────────────────────────────────────────────── -->
+  <div class="panel-attack">
+    <div class="panel-title">&#128203; Vulnerable Login</div>
+
+    <form method="POST" id="sqli-form" class="attack-form">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="sqli-user" name="sqli_user" placeholder="try: admin'--"
+               autocomplete="off" value="{{ request.form.get('sqli_user', '') }}" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="text" id="sqli-pass" name="sqli_pass" placeholder="try: anything"
+               autocomplete="off" value="{{ request.form.get('sqli_pass', '') }}" />
+      </div>
+      <button type="submit" class="btn-primary btn-full">Execute Query &#9889;</button>
+    </form>
+
+    <!-- Live query preview -->
+    <div class="query-container" style="margin-top:1rem">
+      <div class="query-titlebar">
+        <div class="window-dots">
+          <span class="dot dot-red"></span>
+          <span class="dot dot-yellow"></span>
+          <span class="dot dot-green"></span>
+        </div>
+        <span class="query-file">live_query.sql</span>
+      </div>
+      <div class="query-body" id="live-query">
+        <span class="kw">SELECT</span> id, username, role, secret <span class="kw">FROM</span> <span class="tb">demo_users</span><br>
+        <span class="kw">WHERE</span> username = <span class="str" id="q-user">'{{ request.form.get('sqli_user', '') | e }}'</span>
+        <span class="kw">AND</span> password = <span class="str" id="q-pass">'{{ request.form.get('sqli_pass', '') | e }}'</span>
+      </div>
+    </div>
+
+    <!-- Alerts -->
+    {% if error %}
+    <div class="alert alert-error" style="margin-top:0.75rem">
+      <span>&#10060;</span>
+      <div><strong>SQL Error</strong> — {{ error }}<br><small style="opacity:0.75">Errors reveal schema info — useful for attacker recon</small></div>
+    </div>
+    {% endif %}
+
+    {% if success %}
+    <div class="alert alert-success">
+      <span>&#128275;</span>
+      <div>
+        <strong>Injection Successful!</strong>
+        {% if points_earned > 0 %}<span class="points-pop">+{{ points_earned }} pts</span>{% endif %}
+      </div>
+    </div>
+    <div class="results-wrap">
+      <table class="results-table">
+        <thead>
+          <tr><th>#</th><th>Username</th><th>Role</th><th>Secret / Flag</th></tr>
+        </thead>
+        <tbody>
+          {% for row in result %}
+          <tr style="animation-delay:{{ loop.index0 * 80 }}ms">
+            <td style="color:var(--t3)">{{ row.id }}</td>
+            <td><strong>{{ row.username }}</strong></td>
+            <td><span class="{{ 'role-admin' if row.role == 'admin' else 'role-user' }}">{{ row.role }}</span></td>
+            <td class="flag-cell">{{ row.secret }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% elif request.method == 'POST' and not error %}
+    <div class="alert alert-warning">&#128683; No rows returned — refine your payload</div>
+    {% endif %}
+
+    <!-- Score row -->
+    <div class="score-row">
+      <span style="flex-shrink:0">SQLi Score</span>
+      <div class="mini-track"><div class="mini-fill" style="width:{{ sql_score }}%; background:var(--r)"></div></div>
+      <span class="score-num">{{ sql_score }}/100</span>
+    </div>
+  </div>
+
+  <!-- ── Learn panel ─────────────────────────────────────────────────────── -->
+  <div class="panel-learn">
+    <div class="panel-title">&#128218; How It Works</div>
+
+    <div class="learn-section">
+      <h4><span style="color:var(--r)">&#9679;</span> Vulnerable code</h4>
+      <div class="code-window">
+        <div class="code-titlebar">
+          <div class="window-dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+          <span class="code-lang">Python / Flask</span>
+        </div>
+        <div class="code-body"><span class="py-kw">query</span> = (
+  <span class="py-str">f"SELECT * FROM users WHERE username = '<span style="color:var(--r)">{username}</span>'"</span>
+  <span class="py-str">f" AND password = '<span style="color:var(--r)">{password}</span>'"</span>
+)
+db.<span class="py-fn">execute</span>(query)  <span class="py-cm"># ← DANGEROUS — input becomes SQL</span></div>
+      </div>
+    </div>
+
+    <div class="learn-section">
+      <h4><span style="color:var(--g)">&#9679;</span> Secure code</h4>
+      <div class="code-window">
+        <div class="code-titlebar">
+          <div class="window-dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+          <span class="code-lang">Python — parameterized</span>
+        </div>
+        <div class="code-body"><span class="py-kw">query</span> = (
+  <span class="py-str">"SELECT * FROM users WHERE username = ?"</span>
+  <span class="py-str">" AND password = ?"</span>
+)
+db.<span class="py-fn">execute</span>(query, (username, password))
+<span class="py-cm"># ↑ ? placeholders escape input — injection impossible</span></div>
+      </div>
+    </div>
+
+    <div class="learn-section">
+      <h4>&#128203; Click a payload to auto-fill</h4>
+      <table class="payload-table">
+        <tr onclick="fillSqli(&quot;' OR '1'='1&quot;,'x')" title="Returns all users">
+          <td><code>' OR '1'='1</code></td><td>Returns all rows</td>
+          <td class="td-copy"><button class="btn-copy" onclick="event.stopPropagation();copyText(&quot;' OR '1'='1&quot;,this)">Copy</button></td>
+        </tr>
+        <tr onclick="fillSqli(&quot;admin'--&quot;,'')" title="Bypasses password check">
+          <td><code>admin'--</code></td><td>Skip password check</td>
+          <td class="td-copy"><button class="btn-copy" onclick="event.stopPropagation();copyText(&quot;admin'--&quot;,this)">Copy</button></td>
+        </tr>
+        <tr onclick="fillSqli(&quot;' OR 1=1--&quot;,'x')" title="Dump all users">
+          <td><code>' OR 1=1--</code></td><td>Dump all users</td>
+          <td class="td-copy"><button class="btn-copy" onclick="event.stopPropagation();copyText(&quot;' OR 1=1--&quot;,this)">Copy</button></td>
+        </tr>
+        <tr onclick="fillSqli(&quot;' UNION SELECT 1,username,role,secret FROM demo_users--&quot;,'x')" title="UNION attack">
+          <td><code>' UNION SELECT…</code></td><td>Extract all secrets</td>
+          <td class="td-copy"><button class="btn-copy" onclick="event.stopPropagation();copyText(&quot;' UNION SELECT 1,username,role,secret FROM demo_users--&quot;,this)">Copy</button></td>
+        </tr>
+      </table>
+    </div>
+
+    <button class="btn-learn" onclick="markLearned('sql', this)">
+      &#9989; Mark Defense as Learned (+15 pts)
+    </button>
+  </div>
+
+</div><!-- /.challenge-layout -->
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Live query preview ────────────────────────────────────────────────────────
+const uInput = document.getElementById('sqli-user');
+const pInput = document.getElementById('sqli-pass');
+const qUser  = document.getElementById('q-user');
+const qPass  = document.getElementById('q-pass');
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function updatePreview() {
+  const u = esc(uInput.value);
+  const p = esc(pInput.value);
+  const injU = u && (u.includes("'") || u.toUpperCase().includes(' OR ') || u.includes('--') || u.toUpperCase().includes('UNION'));
+  const injP = p && (p.includes("'") || p.toUpperCase().includes(' OR ') || p.includes('--') || p.toUpperCase().includes('UNION'));
+
+  qUser.className = injU ? 'inj' : 'str';
+  qPass.className = injP ? 'inj' : 'str';
+  qUser.textContent = "'" + u + "'";
+  qPass.textContent = "'" + p + "'";
+}
+
+uInput.addEventListener('input', updatePreview);
+pInput.addEventListener('input', updatePreview);
+
+// ── Click-to-fill payloads ────────────────────────────────────────────────────
+function fillSqli(user, pass) {
+  uInput.value = user;
+  pInput.value = pass;
+  updatePreview();
+  uInput.focus();
+  showToast('Payload loaded — click Execute ⚡', 'info');
+  // Flash animation
+  uInput.style.borderColor = 'var(--r)';
+  setTimeout(() => uInput.style.borderColor = '', 800);
+}
+</script>
+{% endblock %}

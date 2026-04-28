@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CyberSim – {% block title %}{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-brand">
+    <span class="lock-icon">&#128274;</span>
+    <span class="brand-text">Cyber<span class="accent">Sim</span></span>
+  </div>
+
+  {% if g_user %}
+  <div class="nav-links">
+    <a href="{{ url_for('dashboard') }}"    class="nav-link {% if request.endpoint == 'dashboard'    %}active{% endif %}">Dashboard</a>
+    <a href="{{ url_for('sql_injection') }}" class="nav-link {% if request.endpoint == 'sql_injection' %}active{% endif %}">SQL Injection</a>
+    <a href="{{ url_for('xss') }}"           class="nav-link {% if request.endpoint == 'xss'           %}active{% endif %}">XSS</a>
+    <a href="{{ url_for('brute_force') }}"   class="nav-link {% if request.endpoint == 'brute_force'   %}active{% endif %}">Brute Force</a>
+  </div>
+  <div class="nav-right">
+    <div class="score-chip">
+      <span class="score-chip-label">Score</span>
+      <span class="score-chip-value" id="nav-score">{{ g_total }}</span>
+      <span class="score-chip-max">/300</span>
+    </div>
+    <div class="nav-avatar">{{ g_user[0]|upper }}</div>
+    <button class="btn-logout" onclick="location.href='{{ url_for('logout') }}'">Logout</button>
+  </div>
+  {% endif %}
+</nav>
+
+<main class="main-content">
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="footer">
+  &#9888; For <strong>educational purposes only</strong>. Do not use these techniques on systems you do not own.
+</footer>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<script>
+// ── Toast ────────────────────────────────────────────────────────────────────
+function showToast(msg, type='success', duration=3200) {
+  const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  t.innerHTML = `<span class="toast-icon">${icons[type]||'ℹ️'}</span><span class="toast-msg">${msg}</span>`;
+  c.appendChild(t);
+  requestAnimationFrame(() => { requestAnimationFrame(() => t.classList.add('show')); });
+  setTimeout(() => {
+    t.classList.remove('show');
+    setTimeout(() => t.remove(), 350);
+  }, duration);
+}
+
+// ── Animated counter ─────────────────────────────────────────────────────────
+function countUp(el, to, duration=900) {
+  const from = parseInt(el.textContent) || 0;
+  if (from === to) return;
+  const start = performance.now();
+  (function step(now) {
+    const p = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(from + (to - from) * eased);
+    if (p < 1) requestAnimationFrame(step);
+  })(start);
+}
+
+// ── Mark learned ─────────────────────────────────────────────────────────────
+function markLearned(topic, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  fetch('/learn/' + topic, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.points_earned > 0) {
+        btn.textContent = `✅ Learned! +${data.points_earned} pts`;
+        // Update inline score bar
+        const bar = document.querySelector('.mini-fill');
+        const num = document.querySelector('.score-num');
+        if (bar) bar.style.width = data.new_score + '%';
+        if (num) countUp(num, data.new_score);
+        // Update nav score
+        const nav = document.getElementById('nav-score');
+        if (nav) countUp(nav, data.total);
+        showToast(`+${data.points_earned} pts — Defense studied! 🎓`, 'success');
+      } else {
+        btn.textContent = '✅ Already credited';
+        showToast('Already credited for this topic', 'info');
+      }
+    })
+    .catch(() => {
+      btn.disabled = false;
+      btn.textContent = '⚠️ Error — try again';
+    });
+}
+
+// ── Copy to clipboard ─────────────────────────────────────────────────────────
+function copyText(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+// ── Animate progress bars on load ────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('[data-width]').forEach(el => {
+    const w = el.dataset.width;
+    requestAnimationFrame(() => setTimeout(() => el.style.width = w, 100));
+  });
+});
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

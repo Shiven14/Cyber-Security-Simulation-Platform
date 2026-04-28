@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CyberSim — Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+</head>
+<body class="login-page">
+
+<div class="matrix-bg" aria-hidden="true" id="matrix-bg"></div>
+
+<div class="login-wrapper">
+  <div class="login-card">
+
+    <div class="login-logo">
+      <span class="lock-icon-lg">&#128274;</span>
+      <h1>Cyber<span class="accent">Sim</span></h1>
+      <p class="login-tagline">Cybersecurity Attack &amp; Defense Lab</p>
+    </div>
+
+    <div class="feature-pills">
+      <span class="pill pill-red">&#128196; SQL Injection</span>
+      <span class="pill pill-amber">&#128195; XSS</span>
+      <span class="pill pill-blue">&#128272; Brute Force</span>
+    </div>
+
+    <form action="{{ url_for('login') }}" method="POST" class="login-form">
+      <div class="form-group">
+        <label for="username">Hacker Alias</label>
+        <input type="text" id="username" name="username"
+               placeholder="e.g. h4x0r_pro" autocomplete="off" autofocus />
+      </div>
+      <button type="submit" class="btn-primary btn-full" style="margin-top:0.25rem">
+        Enter Lab &nbsp;&#10148;
+      </button>
+    </form>
+
+    <p class="login-disclaimer">
+      &#9888; <strong>Educational use only.</strong> All vulnerabilities are intentional simulations running on a local demo database. Do not use these techniques on systems you do not own.
+    </p>
+
+  </div>
+
+  <div style="display:flex; justify-content:center; gap:2rem; margin-top:1.5rem; font-size:0.75rem; color:var(--t3);">
+    <span>&#128308; 3 Challenges</span>
+    <span>&#9733; Scoring System</span>
+    <span>&#127942; Achievements</span>
+  </div>
+</div>
+
+<script>
+(function buildMatrix() {
+  const bg = document.getElementById('matrix-bg');
+  const chars = '01アイウエオカキクケコABCDEFGHIJKLMNOP<>/\\{}[]01101001';
+  const cols = Math.floor(window.innerWidth / 22);
+  for (let i = 0; i < cols; i++) {
+    const col = document.createElement('div');
+    col.className = 'matrix-col';
+    col.style.cssText = [
+      `left:${(i / cols * 100).toFixed(1)}%`,
+      `animation-duration:${(Math.random() * 9 + 5).toFixed(1)}s`,
+      `animation-delay:${(Math.random() * 8).toFixed(1)}s`,
+      `font-size:${Math.random() * 5 + 10}px`,
+      `opacity:${Math.random() * 0.5 + 0.5}`
+    ].join(';');
+    let text = '';
+    const len = Math.floor(Math.random() * 20 + 15);
+    for (let j = 0; j < len; j++) text += chars[Math.floor(Math.random() * chars.length)] + '\n';
+    col.textContent = text;
+    bg.appendChild(col);
+  }
+})();
+</script>
+</body>
+</html>

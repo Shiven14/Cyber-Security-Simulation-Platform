@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}Brute Force{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2><span class="tag-blue">[BF]</span> Brute Force Attack Simulation</h2>
+  <p class="page-subtitle">Run a dictionary attack against target accounts and watch each attempt in the terminal below.</p>
+</div>
+
+<div class="challenge-layout">
+
+  <!-- ── Attack panel ────────────────────────────────────────────────────── -->
+  <div class="panel-attack">
+    <div class="panel-title">&#128272; Dictionary Attack</div>
+
+    <form method="POST" id="bf-form">
+      <div class="form-group">
+        <label>Target Account</label>
+        <select name="target_user" class="select-input">
+          {% for t in targets %}
+          <option value="{{ t }}" {% if result and result.target == t %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn-primary btn-full" id="launch-btn">
+        &#9889; Launch Attack
+      </button>
+    </form>
+
+    {% if result %}
+      {% if result.cracked %}
+      <div class="cracked-banner">
+        <span class="cracked-icon">&#128272;</span>
+        <div class="cracked-info">
+          <div class="cracked-title">Password Cracked!</div>
+          <div class="cracked-detail">{{ result.target }} : {{ result.password }} &nbsp;&#183;&nbsp; {{ result.attempts }} attempt{{ 's' if result.attempts != 1 else '' }}</div>
+        </div>
+        {% if points_earned > 0 %}<span class="points-pop">+{{ points_earned }} pts</span>{% endif %}
+      </div>
+      {% else %}
+      <div class="alert alert-warning" style="margin-top:0.75rem">
+        &#128683; Not in wordlist — {{ result.attempts }} attempts exhausted
+        {% if points_earned > 0 %}<span class="points-pop">+{{ points_earned }} pts</span>{% endif %}
+      </div>
+      {% endif %}
+    {% endif %}
+
+    {% if attempts_log %}
+    <!-- Stats -->
+    <div class="bf-stats">
+      <div class="bf-stat">
+        <div class="bf-stat-num" style="color:var(--b)">{{ attempts_log|length }}</div>
+        <div class="bf-stat-lbl">Attempts</div>
+      </div>
+      <div class="bf-stat">
+        <div class="bf-stat-num" style="color:{{ 'var(--g)' if result.cracked else 'var(--r)' }}">
+          {{ '1' if result.cracked else '0' }}
+        </div>
+        <div class="bf-stat-lbl">Cracked</div>
+      </div>
+      <div class="bf-stat">
+        <div class="bf-stat-num" style="color:var(--a)">
+          {{ ((1 if result.cracked else 0) / attempts_log|length * 100)|int }}%
+        </div>
+        <div class="bf-stat-lbl">Success Rate</div>
+      </div>
+    </div>
+
+    <!-- Terminal -->
+    <div class="terminal-wrap">
+      <div class="terminal-bar">
+        <div class="terminal-bar-left">
+          <div class="window-dots">
+            <span class="dot dot-red"></span>
+            <span class="dot dot-yellow"></span>
+            <span class="dot dot-green"></span>
+          </div>
+          <span class="terminal-title">bruteforce.py — {{ result.target }}</span>
+        </div>
+        <span class="terminal-meta">{{ attempts_log|length }} / {{ wordlist|length }}</span>
+      </div>
+      <div class="terminal-body" id="terminal">
+        {% for a in attempts_log %}
+        <div class="terminal-line {{ 't-line-success' if a.success else 't-line-fail' }}" data-idx="{{ loop.index0 }}">
+          <span class="t-num">{{ '%02d'|format(a.attempt) }}</span>
+          <span class="t-user">{{ result.target }}</span>
+          <span class="t-pass t-{{ 'success' if a.success else 'fail' }}">{{ a.password }}</span>
+          <span class="t-status">{{ '✓ CRACKED' if a.success else '✗ FAIL' }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Wordlist display -->
+    <div style="margin-top:1.1rem">
+      <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--t3);margin-bottom:6px">Wordlist</div>
+      <div class="wordlist-grid" id="wordlist-grid">
+        {% for pwd in wordlist %}
+        <span class="wordlist-word" id="w-{{ pwd }}"
+              data-matched="{{ 'true' if result and result.cracked and result.password == pwd else 'false' }}">
+          {{ pwd }}
+        </span>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Score row -->
+    <div class="score-row" style="margin-top:1.1rem">
+      <span style="flex-shrink:0">BF Score</span>
+      <div class="mini-track"><div class="mini-fill" style="width:{{ brute_score }}%; background:var(--b)"></div></div>
+      <span class="score-num">{{ brute_score }}/100</span>
+    </div>
+  </div>
+
+  <!-- ── Learn panel ─────────────────────────────────────────────────────── -->
+  <div class="panel-learn">
+    <div class="panel-title">&#128218; How It Works</div>
+
+    <div class="learn-section">
+      <h4><span style="color:var(--r)">&#9679;</span> What is a dictionary attack?</h4>
+      <p>An attacker uses a pre-built list of common/leaked passwords and tries each one. The famous <em>RockYou</em> list contains <strong>14 million</strong> real passwords from a 2009 breach.</p>
+      <div class="code-window" style="margin-top:0.6rem">
+        <div class="code-titlebar">
+          <div class="window-dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+          <span class="code-lang">Pseudocode</span>
+        </div>
+        <div class="code-body"><span class="py-kw">for</span> password <span class="py-kw">in</span> wordlist:
+    <span class="py-kw">if</span> login(username, password):
+        <span class="py-fn">print</span>(<span class="py-str">f"Cracked: {password}"</span>)
+        <span class="py-kw">break</span></div>
+      </div>
+    </div>
+
+    <div class="learn-section">
+      <h4><span style="color:var(--g)">&#9679;</span> Defenses</h4>
+      <ul>
+        <li><strong>Rate limiting</strong> — cap login attempts per IP per minute</li>
+        <li><strong>Account lockout</strong> — lock after N consecutive failures</li>
+        <li><strong>CAPTCHA</strong> — block automated scripts</li>
+        <li><strong>MFA / 2FA</strong> — password alone is never enough</li>
+        <li><strong>Strong passwords</strong> — long &amp; random — not in any wordlist</li>
+        <li><strong>Password managers</strong> — unique password per service</li>
+      </ul>
+      <div class="code-window" style="margin-top:0.6rem">
+        <div class="code-titlebar">
+          <div class="window-dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+          <span class="code-lang">Flask-Limiter</span>
+        </div>
+        <div class="code-body"><span class="py-kw">from</span> flask_limiter <span class="py-kw">import</span> Limiter
+
+limiter = <span class="py-fn">Limiter</span>(app)
+
+<span class="py-cm">@app.route('/login', methods=['POST'])</span>
+<span class="py-cm">@limiter.limit("5 per minute")</span>
+<span class="py-kw">def</span> <span class="py-fn">login</span>():
+    ...</div>
+      </div>
+    </div>
+
+    <div class="learn-section">
+      <h4>&#128203; Target passwords (hidden)</h4>
+      <p style="color:var(--t3);font-size:0.78rem">All three are in the wordlist above. Try all three targets to unlock the <em>Full Compromise</em> achievement.</p>
+    </div>
+
+    <button class="btn-learn" onclick="markLearned('brute', this)">
+      &#9989; Mark Defense as Learned (+15 pts)
+    </button>
+  </div>
+
+</div><!-- /.challenge-layout -->
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Stagger terminal line animations
+document.querySelectorAll('.terminal-line').forEach((line, i) => {
+  setTimeout(() => line.classList.add('visible'), 50 + i * 90);
+});
+
+// Highlight matched wordlist word
+document.querySelectorAll('.wordlist-word[data-matched="true"]').forEach(el => {
+  setTimeout(() => el.classList.add('matched'), 200 + document.querySelectorAll('.terminal-line').length * 90 + 100);
+});
+
+// Auto-scroll terminal to bottom after animation
+{% if attempts_log %}
+const term = document.getElementById('terminal');
+const delay = 50 + {{ attempts_log|length }} * 90 + 200;
+setTimeout(() => { if(term) term.scrollTop = term.scrollHeight; }, delay);
+{% endif %}
+
+// Button loading state
+document.getElementById('bf-form').addEventListener('submit', function() {
+  const btn = document.getElementById('launch-btn');
+  btn.textContent = '⏳ Running…';
+  btn.disabled = true;
+});
+</script>
+{% endblock %}

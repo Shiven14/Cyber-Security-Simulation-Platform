@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Welcome back, <span class="accent">{{ g_user }}</span> &#128075;</h2>
+  <p class="page-subtitle">Pick a challenge, exploit the vulnerability, then read the defense — score 300 to complete the lab.</p>
+</div>
+
+<!-- Stats row -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-icon stat-icon-green">&#127942;</div>
+    <div class="stat-info">
+      <div class="stat-value" data-count="{{ g_total }}" style="color:var(--g)">0</div>
+      <div class="stat-label">Total Score</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon-red">&#128196;</div>
+    <div class="stat-info">
+      <div class="stat-value" data-count="{{ g_score.sql }}" style="color:var(--r)">0</div>
+      <div class="stat-label">SQLi Score</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon-amber">&#128195;</div>
+    <div class="stat-info">
+      <div class="stat-value" data-count="{{ g_score.xss }}" style="color:var(--a)">0</div>
+      <div class="stat-label">XSS Score</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon-blue">&#128272;</div>
+    <div class="stat-info">
+      <div class="stat-value" data-count="{{ g_score.brute }}" style="color:var(--b)">0</div>
+      <div class="stat-label">BruteForce Score</div>
+    </div>
+  </div>
+</div>
+
+<!-- Overall progress -->
+<div class="progress-section">
+  <div class="progress-header">
+    <span class="progress-title">Overall Progress</span>
+    <span class="progress-pct" id="pct-counter">0%</span>
+  </div>
+  <div class="progress-track">
+    <div class="progress-fill" id="main-bar" style="width:0%" data-width="{{ (g_total / 300 * 100)|int }}%"></div>
+  </div>
+  <div class="rank-row">
+    {% set pct = (g_total / 300 * 100)|int %}
+    {% if pct >= 90 %}
+      <span class="rank-badge rank-elite">&#9733; Elite Hacker</span>
+      <span class="rank-hint">Outstanding performance across all challenges</span>
+    {% elif pct >= 60 %}
+      <span class="rank-badge rank-advanced">&#9650; Advanced</span>
+      <span class="rank-hint">Strong skills — keep pushing for elite rank</span>
+    {% elif pct >= 30 %}
+      <span class="rank-badge rank-inter">&#9654; Intermediate</span>
+      <span class="rank-hint">Good progress — complete more challenges</span>
+    {% else %}
+      <span class="rank-badge rank-newbie">&#9711; Newbie</span>
+      <span class="rank-hint">Start with SQL Injection below</span>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Challenge cards -->
+<div class="challenge-grid">
+
+  <a href="{{ url_for('sql_injection') }}" class="challenge-card card-red">
+    <div class="card-icon-wrap card-icon-wrap-red">&#128196;</div>
+    <h3>SQL Injection</h3>
+    <p>Exploit a live SQLite database through a vulnerable login form. Bypass auth, extract hidden flags, and master UNION attacks.</p>
+    <div class="card-score">
+      <div class="mini-track"><div class="mini-fill" data-width="{{ g_score.sql }}%" style="width:0%; background:var(--r);"></div></div>
+      <span>{{ g_score.sql }}/100</span>
+    </div>
+    <span class="card-cta">Open Challenge &#10148;</span>
+  </a>
+
+  <a href="{{ url_for('xss') }}" class="challenge-card card-amber">
+    <div class="card-icon-wrap card-icon-wrap-amber">&#128195;</div>
+    <h3>Cross-Site Scripting</h3>
+    <p>Inject scripts into a vulnerable comment board. Steal cookies, hijack the DOM, and learn how output encoding stops it.</p>
+    <div class="card-score">
+      <div class="mini-track"><div class="mini-fill" data-width="{{ g_score.xss }}%" style="width:0%; background:var(--a);"></div></div>
+      <span>{{ g_score.xss }}/100</span>
+    </div>
+    <span class="card-cta">Open Challenge &#10148;</span>
+  </a>
+
+  <a href="{{ url_for('brute_force') }}" class="challenge-card card-blue">
+    <div class="card-icon-wrap card-icon-wrap-blue">&#128272;</div>
+    <h3>Brute Force Attack</h3>
+    <p>Run a simulated dictionary attack on target accounts. Watch passwords fall in real time, then explore the defenses.</p>
+    <div class="card-score">
+      <div class="mini-track"><div class="mini-fill" data-width="{{ g_score.brute }}%" style="width:0%; background:var(--b);"></div></div>
+      <span>{{ g_score.brute }}/100</span>
+    </div>
+    <span class="card-cta">Open Challenge &#10148;</span>
+  </a>
+
+</div>
+
+<!-- Achievements -->
+{% if g_achievements %}
+<div class="achievements-section">
+  <div class="section-heading">Achievements Unlocked ({{ g_achievements|length }})</div>
+  <div class="achievements-grid">
+    {% set ach_meta = {
+      'sql_basic':            ('&#128196;', 'First Injection',   'Ran an SQL injection'),
+      'sql_bypass':           ('&#128275;', 'Auth Bypass',        'OR-based login bypass'),
+      'sql_comment':          ('&#128220;', 'Comment Killer',     'Dropped password check with --'),
+      'sql_union':            ('&#9888;',   'UNION Master',       'UNION attack succeeded'),
+      'sql_learned':          ('&#128218;', 'SQLi Scholar',       'Studied SQL defenses'),
+      'xss_basic':            ('&#128195;', 'Script Kiddie',      'Injected a <script> tag'),
+      'xss_onerror':          ('&#128248;', 'Event Handler',      'onerror attribute exploit'),
+      'xss_cookie':           ('&#127850;', 'Cookie Monster',     'Accessed document.cookie'),
+      'xss_learned':          ('&#128218;', 'XSS Scholar',        'Studied XSS defenses'),
+      'brute_attempted':      ('&#128270;', 'First Strike',       'Ran a brute-force sim'),
+      'brute_cracked_admin':  ('&#128272;', 'Admin Owned',        'Cracked admin password'),
+      'brute_cracked_alice':  ('&#128272;', 'Alice Owned',        "Cracked Alice's account"),
+      'brute_cracked_bob':    ('&#128272;', 'Bob Owned',          "Cracked Bob's account"),
+      'brute_all':            ('&#127881;', 'Full Compromise',    'All accounts cracked'),
+      'brute_learned':        ('&#128218;', 'BF Scholar',         'Studied BF defenses'),
+    } %}
+    {% for ach in g_achievements %}
+      {% if ach in ach_meta %}
+        {% set icon, title, desc = ach_meta[ach] %}
+        <div class="achievement-badge">
+          <span class="ach-icon">{{ icon }}</span>
+          <div>
+            <strong>{{ title }}</strong>
+            <small>{{ desc }}</small>
+          </div>
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Animated counters
+  document.querySelectorAll('[data-count]').forEach(el => {
+    const target = parseInt(el.dataset.count);
+    const delay  = parseInt(el.closest('.stat-card')?.style.animationDelay) || 0;
+    setTimeout(() => countUp(el, target, 800), delay * 1000 + 300);
+  });
+
+  // Percentage counter
+  const pct    = {{ (g_total / 300 * 100)|int }};
+  const pctEl  = document.getElementById('pct-counter');
+  const barEl  = document.getElementById('main-bar');
+  setTimeout(() => {
+    barEl.style.width = pct + '%';
+    const start = performance.now();
+    (function step(now) {
+      const p = Math.min((now - start) / 1000, 1);
+      const e = 1 - Math.pow(1 - p, 3);
+      pctEl.textContent = Math.round(pct * e) + '%';
+      if (p < 1) requestAnimationFrame(step);
+    })(start);
+  }, 200);
+
+  // Mini bars
+  document.querySelectorAll('.mini-fill[data-width]').forEach((el, i) => {
+    setTimeout(() => { el.style.width = el.dataset.width; }, 300 + i * 80);
+  });
+});
+</script>
+{% endblock %}

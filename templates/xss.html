@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}XSS{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2><span class="tag-amber">[XSS]</span> Cross-Site Scripting Challenge</h2>
+  <p class="page-subtitle">This comment board renders raw HTML. Inject scripts, steal cookies, manipulate the DOM.</p>
+</div>
+
+<div class="xss-banner">
+  <span>&#9888;</span>
+  <span><strong>Intentionally vulnerable demo.</strong> The left panel renders your input as raw HTML so you can observe XSS in action inside this local lab.</span>
+</div>
+
+<div class="challenge-layout">
+
+  <!-- ── Attack panel ────────────────────────────────────────────────────── -->
+  <div class="panel-attack">
+    <div class="panel-title">&#128195; Comment Board (Vulnerable)</div>
+
+    <form method="POST" id="xss-form">
+      <div class="form-group">
+        <label>Post a Comment (or Payload)</label>
+        <textarea id="xss-input" name="comment" rows="3"
+                  placeholder="try: <script>alert('XSS!')</script>"></textarea>
+      </div>
+      <button type="submit" class="btn-primary btn-full">Post Comment &#9889;</button>
+    </form>
+
+    {% if xss_found %}
+    <div class="alert alert-success" style="margin-top:0.75rem">
+      <span>&#10003;</span>
+      <div>
+        <strong>XSS Payload Detected!</strong>
+        {% if points_earned > 0 %}<span class="points-pop">+{{ points_earned }} pts</span>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Quick payload buttons -->
+    <div style="margin-top:1rem">
+      <div style="font-size:0.72rem;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Quick Payloads</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <button class="btn-ghost" style="font-size:0.75rem;font-family:'JetBrains Mono',monospace" onclick="fillXss(&quot;<script>alert('XSS!')<\/script>&quot;)">&lt;script&gt;alert()</button>
+        <button class="btn-ghost" style="font-size:0.75rem;font-family:'JetBrains Mono',monospace" onclick="fillXss(&quot;<img src=x onerror=alert('XSS!')>&quot;)">img onerror</button>
+        <button class="btn-ghost" style="font-size:0.75rem;font-family:'JetBrains Mono',monospace" onclick="fillXss(&quot;<script>alert(document.cookie)<\/script>&quot;)">steal cookie</button>
+        <button class="btn-ghost" style="font-size:0.75rem;font-family:'JetBrains Mono',monospace" onclick="fillXss(&quot;<script>document.body.style.background='crimson'<\/script>&quot;)">DOM hack</button>
+      </div>
+    </div>
+
+    <!-- Score row -->
+    <div class="score-row" style="margin-top:1.25rem">
+      <span style="flex-shrink:0">XSS Score</span>
+      <div class="mini-track"><div class="mini-fill" style="width:{{ xss_score }}%; background:var(--a)"></div></div>
+      <span class="score-num">{{ xss_score }}/100</span>
+    </div>
+
+    <form method="POST" action="{{ url_for('xss_clear') }}" style="margin-top:0.75rem">
+      <button type="submit" class="btn-ghost" style="width:100%;font-size:0.78rem">
+        &#128465; Clear All Comments
+      </button>
+    </form>
+  </div>
+
+  <!-- ── Learn panel ─────────────────────────────────────────────────────── -->
+  <div class="panel-learn">
+    <div class="panel-title">&#128218; How It Works</div>
+
+    <div class="learn-section">
+      <h4><span style="color:var(--r)">&#9679;</span> Vulnerable rendering</h4>
+      <div class="code-window">
+        <div class="code-titlebar">
+          <div class="window-dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+          <span class="code-lang">Jinja2 — UNSAFE</span>
+        </div>
+        <div class="code-body"><span class="py-cm">{# Raw HTML rendered — scripts execute #}</span>
+{{ '{{ comment | safe }}' }}
+<span class="py-cm"># ↑ | safe skips auto-escaping</span></div>
+      </div>
+    </div>
+
+    <div class="learn-section">
+      <h4><span style="color:var(--g)">&#9679;</span> Secure rendering</h4>
+      <div class="code-window">
+        <div class="code-titlebar">
+          <div class="window-dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+          <span class="code-lang">Jinja2 — Safe (default)</span>
+        </div>
+        <div class="code-body"><span class="py-cm">{# Auto-escapes &lt; &gt; &amp; " ' #}</span>
+{{ '{{ comment }}' }}
+
+<span class="py-cm"># Python — explicit</span>
+<span class="py-kw">import</span> html
+safe = html.<span class="py-fn">escape</span>(user_input)
+
+<span class="py-cm"># CSP header (stops inline scripts)</span>
+<span class="py-str">Content-Security-Policy: default-src 'self'</span></div>
+      </div>
+    </div>
+
+    <div class="learn-section">
+      <h4>&#128203; Payload types</h4>
+      <ul>
+        <li><strong>&lt;script&gt; tag</strong> — classic inline script execution</li>
+        <li><strong>onerror attribute</strong> — fires when an image fails to load</li>
+        <li><strong>document.cookie</strong> — reads session tokens from the browser</li>
+        <li><strong>DOM manipulation</strong> — changes page content/appearance</li>
+        <li><strong>Redirect</strong> — <code>location.href='http://attacker.com'</code></li>
+      </ul>
+    </div>
+
+    <button class="btn-learn" onclick="markLearned('xss', this)">
+      &#9989; Mark Defense as Learned (+15 pts)
+    </button>
+  </div>
+
+</div><!-- /.challenge-layout -->
+
+<!-- ── Comment Feed ──────────────────────────────────────────────────────── -->
+{% if comments %}
+<div class="comments-section">
+  <div class="section-heading">Comment Feed</div>
+  <div class="comments-grid">
+
+    <div>
+      <div class="comment-col-head head-vuln">&#128308; Vulnerable — Raw HTML Rendered</div>
+      <div class="comment-list comment-text-vuln">
+        {% for c in comments %}
+        <div class="comment-item" style="animation-delay:{{ loop.index0 * 60 }}ms">
+          <div class="comment-meta">{{ c.author }} &#183; comment #{{ loop.index }}</div>
+          <!-- INTENTIONALLY UNESCAPED – educational demo -->
+          <div class="comment-text">{{ c.text | safe }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div>
+      <div class="comment-col-head head-safe">&#128994; Secure — HTML Escaped</div>
+      <div class="comment-list comment-text-safe">
+        {% for c in comments %}
+        <div class="comment-item" style="animation-delay:{{ loop.index0 * 60 }}ms">
+          <div class="comment-meta">{{ c.author }} &#183; comment #{{ loop.index }}</div>
+          <div class="comment-text" style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;color:var(--g)">{{ c.text }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+</div>
+{% else %}
+<div style="text-align:center;padding:2rem;color:var(--t3);font-size:0.85rem">
+  No comments yet — post one above to see the vulnerable vs secure rendering side-by-side.
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function fillXss(payload) {
+  const ta = document.getElementById('xss-input');
+  ta.value = payload;
+  ta.focus();
+  ta.style.borderColor = 'var(--a)';
+  setTimeout(() => ta.style.borderColor = '', 800);
+  showToast('Payload loaded — click Post ⚡', 'info');
+}
+
+// Animate comment items on load
+document.querySelectorAll('.comment-item').forEach((el, i) => {
+  el.style.opacity = '0';
+  el.style.transform = 'translateY(8px)';
+  setTimeout(() => {
+    el.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+    el.style.opacity = '1';
+    el.style.transform = 'translateY(0)';
+  }, 100 + i * 60);
+});
+</script>
+{% endblock %}
